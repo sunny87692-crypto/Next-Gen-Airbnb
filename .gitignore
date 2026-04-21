@@ -1,0 +1,33 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+**/dist/
+**/.turbo/
+**/.next/
+**/.expo/
+**/npm-debug.log*
+**/yarn-error.log*
+**/package-lock.json
+**/pnpm-lock.yaml
+**/yarn.lock
+
+# Python
+__pycache__/
+*.py[cod]
+*.env
+.venv/
+
+# Java
+target/
+*.class
+
+# Go
+bin/
+*.exe
+
+# IDE
+.vscode/
+.DS_Store

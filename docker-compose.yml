@@ -1,0 +1,45 @@
+version: '3.9'
+services:
+  auth-service:
+    build: ./services/auth-service
+    ports:
+      - '4001:4001'
+    environment:
+      - NODE_ENV=development
+
+  gateway:
+    build: ./services/gateway
+    ports:
+      - '4000:4000'
+    depends_on:
+      - auth-service
+
+  core-service:
+    build: ./services/core-service
+    ports:
+      - '5001:5001'
+
+  business-service:
+    build: ./services/business-service
+    ports:
+      - '8080:8080'
+
+  ai-service:
+    build:
+      context: ./services/ai-service
+    ports:
+      - '5003:5003'
+
+  postgres:
+    image: postgres:15
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=nwxt
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

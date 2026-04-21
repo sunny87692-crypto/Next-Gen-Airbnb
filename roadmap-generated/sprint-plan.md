@@ -1,0 +1,81 @@
+# Sprint-by-Sprint Build Plan
+
+## Sprint 1: Project Setup & Web Frontend (Weeks 1–2)
+- Goal: Running Next.js app with Tailwind, basic pages, routing.
+- Steps:
+  1. Initialize a Next.js 14 app with TypeScript, App Router, and Tailwind CSS in `apps/web`.
+  2. Create a responsive landing page with a navbar, hero section, and footer using Tailwind.
+  3. Set up routing with pages: Home, Dashboard, Login, Register, Map View.
+  4. Add Mapbox GL JS to the Map View page with a basic interactive map.
+  5. Set up TanStack Query provider in the app layout.
+- Milestone: Web app runs locally at `localhost:3000` with multiple pages and a map view.
+
+## Sprint 2: Mobile App (Weeks 3–4)
+- Goal: React Native app sharing UI patterns with the web app.
+- Steps:
+  1. Initialize a React Native Expo app with TypeScript in `apps/mobile`.
+  2. Set up React Navigation with tab navigation: Home, Map, Profile.
+  3. Create the Home screen with a welcome card and action buttons.
+  4. Add a Map screen using `react-native-maps` with user location.
+  5. Set up TanStack Query for data fetching in the mobile app.
+- Milestone: Mobile app runs on Web Preview (Expo Web).
+
+## Sprint 3: Auth Backend + GraphQL Gateway (Weeks 5–7)
+- Goal: User authentication working end-to-end.
+- Steps:
+  1. Create a Node.js Fastify service in `services/auth-service` with TypeScript.
+  2. Add user registration and login endpoints with bcrypt password hashing and JWT tokens.
+  3. Set up PostgreSQL database with Prisma ORM, create User model with migrations.
+  4. Create an Apollo GraphQL gateway in `services/gateway` that wraps the auth service.
+  5. Connect the web app login/register pages to the GraphQL gateway using Apollo Client and TanStack Query.
+  6. Add protected routes — redirect to login if not authenticated.
+- Milestone: Users can register, login, and access protected pages; JWT auth works end-to-end.
+
+## Sprint 4: Core Backend Services (Weeks 8–10)
+- Goal: Go and Java microservices communicating via gRPC.
+- Steps:
+  1. Create shared Protobuf definitions in `proto/` for user, location, and business entities.
+  2. Create a Go + Gin microservice in `services/core-service` with gRPC server.
+  3. Create a Java Spring Boot microservice in `services/business-service` with gRPC server.
+  4. Generate gRPC client code and make the GraphQL gateway call both services.
+  5. Add database connections — Go service uses PostgreSQL, Java service uses PostgreSQL.
+- Milestone: Three backend services running, communicating via gRPC, exposed through GraphQL gateway.
+
+## Sprint 5: AI/ML Service (Weeks 11–13)
+- Goal: AI-powered features (chatbot, smart search, recommendations).
+- Steps:
+  1. Create a Python FastAPI service in `services/ai-service` with health check endpoint.
+  2. Integrate OpenAI GPT-4o API with a chat endpoint that accepts user messages and returns AI responses.
+  3. Set up LangChain with a RAG pipeline: document loader → text splitter → embeddings → Pinecone vector store → retriever → QA chain.
+  4. Add a `/search` endpoint that does semantic search over stored documents.
+  5. Set up MLflow experiment tracking for any custom model training.
+  6. Connect the AI service to the GraphQL gateway and add a chat component to the web/mobile apps.
+- Milestone: App has an AI chatbot, semantic search, and document Q&A powered by LLMs + RAG.
+
+## Sprint 6: Containerization & Local Orchestration (Weeks 14–15)
+- Goal: All services running together in Docker.
+- Steps:
+  1. Create Dockerfiles for each service: `auth-service` (Node), `core-service` (Go), `business-service` (Java), `ai-service` (Python), `gateway` (Node).
+  2. Create a `docker-compose.yml` that runs all services + PostgreSQL + Redis locally.
+  3. Add environment variable management with `.env` files.
+  4. Test the entire system locally with Docker Compose.
+- Milestone: `docker compose up` starts the entire application stack locally.
+
+## Sprint 7: CI/CD Pipeline (Weeks 16–17)
+- Goal: Automated testing, building, and deployment.
+- Steps:
+  1. Create GitHub Actions workflows: lint → test → build Docker images → push to container registry.
+  2. Set up separate workflows for each service (triggered only when that service's code changes).
+  3. Create Kubernetes manifests (Deployments, Services, Ingress) for each service in `infra/k8s/`.
+  4. Set up ArgoCD to watch the Git repo and auto-deploy to Kubernetes.
+- Milestone: Every git push triggers automated tests and deployment.
+
+## Sprint 8: Infrastructure & Monitoring (Weeks 18–20)
+- Goal: Production-ready infrastructure.
+- Steps:
+  1. Create Terraform configs in `infra/terraform/` to provision AWS EKS cluster, VPC, RDS, and networking.
+  2. Set up Istio service mesh with mTLS between services.
+  3. Deploy Prometheus and Grafana to the cluster with `infra/monitoring/` configs.
+  4. Create Grafana dashboards for each service: request rate, latency, error rate, CPU/memory.
+  5. Set up alerting rules for critical metrics.
+- Milestone: App is running in production on AWS EKS with full observability and security.

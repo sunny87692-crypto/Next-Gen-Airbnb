@@ -1,0 +1,11 @@
+[project]
+name = "nwxt-gen-ai-service"
+version = "0.1.0"
+description = "AI/ML FastAPI service for NWXT gen roadmap"
+dependencies = [
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.23.1"
+]
+
+[tool.black]
+line-length = 88
