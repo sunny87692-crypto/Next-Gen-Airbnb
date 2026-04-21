@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { ArrowLeft, Star, Heart, Share, MapPin, Search } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getAuthToken } from '../../../lib/auth';
+import { buildApiUrl, getGeoapifyApiKey } from '../../../lib/api';
+import { buildGeoapifyStaticMapUrl, geocodeLocation } from '../../../lib/geoapify';
 
 // Mock Data Source (used as fallback for non-db items)
 const homePhotos = [
@@ -27,6 +29,8 @@ export default function ListingDetail({ params }: { params: { id: string } }) {
   const [isSaved, setIsSaved] = useState(false);
   const [listing, setListing] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [propertyMapUrl, setPropertyMapUrl] = useState<string | null>(null);
+  const [propertyMapLoading, setPropertyMapLoading] = useState(false);
   
   const [showPayment, setShowPayment] = useState(false);
   const [bookingStatus, setBookingStatus] = useState<null | 'processing' | 'success'>(null);
@@ -38,22 +42,19 @@ export default function ListingDetail({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchListing = async () => {
       try {
-        const res = await fetch('http://localhost:4001/listings');
+        const res = await fetch(buildApiUrl('/listings'));
         if (res.ok) {
           const data = await res.json();
           // Attempt to find in DB
-          const dbItem = data.properties?.find((p: any) => p.id === params.id);
+          const dbItem = data.listings?.find((p: any) => p.id === params.id);
           if (dbItem) {
-            let photoUrl = 'https://images.unsplash.com/photo-1416331108676-a22ccb276e35?auto=format&fit=crop&w=1200&q=80';
-            try {
-               const photos = JSON.parse(dbItem.photos);
-               if (photos && photos.length > 0) photoUrl = photos[0];
-            } catch(e) {}
+            const photos = Array.isArray(dbItem.photos) ? dbItem.photos : [];
+            const photoUrl = photos[0] || 'https://images.unsplash.com/photo-1416331108676-a22ccb276e35?auto=format&fit=crop&w=1200&q=80';
             
             setListing({
               id: dbItem.id,
               title: dbItem.title,
-              subtitle: 'Premium stay',
+              subtitle: dbItem.description || dbItem.size || 'Premium stay',
               location: dbItem.location,
               price: dbItem.price,
               rating: '4.95',
@@ -88,6 +89,47 @@ export default function ListingDetail({ params }: { params: { id: string } }) {
     fetchListing();
   }, [params.id]);
 
+  useEffect(() => {
+    const apiKey = getGeoapifyApiKey();
+    if (!listing?.location || !apiKey) {
+      setPropertyMapUrl(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadPropertyMap = async () => {
+      setPropertyMapLoading(true);
+      try {
+        const point = await geocodeLocation(`${listing.location}, India`, apiKey);
+        if (!cancelled) {
+          setPropertyMapUrl(
+            point
+              ? buildGeoapifyStaticMapUrl({
+                  center: point,
+                  markers: [point],
+                  width: 1200,
+                  height: 520,
+                  zoom: 12,
+                  apiKey,
+                })
+              : null
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setPropertyMapLoading(false);
+        }
+      }
+    };
+
+    loadPropertyMap();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [listing?.location]);
+
   const handleBooking = async () => {
     if (payMethod === 'card' && (!cardNumber || !expiry || !cvv)) {
        alert("Please enter payment details");
@@ -104,7 +146,7 @@ export default function ListingDetail({ params }: { params: { id: string } }) {
     // If it's a DB item, call the backend booking endpoint
     if (listing.fromDb) {
       try {
-        const res = await fetch('http://localhost:4001/bookings', {
+        const res = await fetch(buildApiUrl('/bookings'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -239,6 +281,31 @@ export default function ListingDetail({ params }: { params: { id: string } }) {
                <p className="text-[#2c3e5e] leading-relaxed mb-6">
                  Hosting has taught me to be a better person by heart, helped me make new friends and be introduced to various cultures. Travelling as a backpacker has made me strong to deal with various situations in life, be in love with mother nature and meet people with similar interests. I am a host to various listings in Pune...
                </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="my-10 h-px bg-[#8faec8]/20 w-full md:w-2/3" />
+
+        <div className="md:w-2/3">
+          <h2 className="text-2xl font-bold mb-3">Where you'll be</h2>
+          <p className="text-[#2c3e5e] mb-5">{listing.location}, India</p>
+
+          <div className="relative overflow-hidden rounded-[28px] border border-[#d4e4f7] bg-[#f8f9fb]">
+            <img
+              src={propertyMapUrl || MAP_PLACEHOLDER}
+              alt={`${listing.location} map`}
+              className="h-[320px] w-full object-cover"
+            />
+
+            {propertyMapLoading ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/65 text-sm font-semibold text-[#1a2742]">
+                Loading Geoapify map...
+              </div>
+            ) : null}
+
+            <div className="absolute bottom-0 left-0 right-0 bg-black/55 px-4 py-3 text-center text-sm font-bold text-white">
+              Exact location provided after booking
             </div>
           </div>
         </div>
