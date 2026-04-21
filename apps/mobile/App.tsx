@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   SafeAreaView, StyleSheet, Text, View, ScrollView, 
-  TouchableOpacity, Image, Dimensions, TextInput
+  TouchableOpacity, Image, Dimensions, TextInput, Alert
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -36,6 +36,10 @@ const categories: { id: CategoryId; icon: string; label: string; badge?: string;
   { id: 'experiences', icon: '🧳', label: 'Experiences', badge: 'NEW' },
   { id: 'agents', icon: '🤖', label: 'AI Agents', badge: 'NEW' },
   { id: 'services', icon: '🛎️', label: 'Services', badge: 'NEW', aiTag: true },
+];
+
+const suggestedDestinations = [
+  { id: 'nearby', icon: '->', title: 'Nearby', subtitle: "Find what's around you", query: '' },
 ];
 
 const homePhotos = [
@@ -163,8 +167,11 @@ const mockSections = [
 const ExploreScreen = ({ navigation }: any) => {
   const [activeCategory, setActiveCategory] = useState<CategoryId>('homes');
   const [searchWhere, setSearchWhere] = useState('');
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [searchWhen, setSearchWhen] = useState('');
+  const [searchWho, setSearchWho] = useState('');
   const [liveSections, setLiveSections] = useState<any[]>(mockSections);
+  const { wishlistIds, toggleWishlist } = React.useContext(AuthContext);
+  const wishlistSet = useMemo(() => new Set(wishlistIds), [wishlistIds]);
 
   useEffect(() => {
     const fetchListings = async () => {
@@ -217,13 +224,11 @@ const ExploreScreen = ({ navigation }: any) => {
     })).filter(s => s.items.length > 0);
   }, [activeCategory, searchWhere]);
 
-  const toggleFav = (id: string) => {
-    setFavorites(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const toggleFav = async (id: string) => {
+    const result = await toggleWishlist(id);
+    if (!result.ok) {
+      Alert.alert('Login Required', result.message || 'Please log in to save wishlists.');
+    }
   };
 
   return (
@@ -281,6 +286,106 @@ const ExploreScreen = ({ navigation }: any) => {
 
       {/* ── LISTINGS ── */}
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.searchHero}>
+          <View style={styles.searchHeroTopRow}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+              {categories.map((cat) => {
+                const isActive = cat.id === activeCategory;
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    onPress={() => setActiveCategory(cat.id)}
+                    style={[styles.categoryPill, isActive && styles.categoryPillActive]}
+                  >
+                    <Text style={styles.categoryPillIcon}>{cat.icon}</Text>
+                    <Text style={[styles.categoryPillText, isActive && styles.categoryPillTextActive]}>{cat.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.searchCloseBtn}
+              onPress={() => {
+                setSearchWhere('');
+                setSearchWhen('');
+                setSearchWho('');
+              }}
+            >
+              <Text style={styles.searchCloseBtnText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.searchSheet}>
+            <Text style={styles.searchSheetTitle}>Where?</Text>
+            <View style={styles.searchInputShell}>
+              <Text style={styles.searchIcon}>⌕</Text>
+              <TextInput
+                style={styles.searchSheetInput}
+                placeholder="Search destinations"
+                value={searchWhere}
+                onChangeText={setSearchWhere}
+                placeholderTextColor={COLORS.steelBlue}
+              />
+            </View>
+
+            <Text style={styles.suggestionHeading}>Suggested destinations</Text>
+            <View style={styles.suggestionList}>
+              {suggestedDestinations.map((suggestion) => (
+                <TouchableOpacity
+                  key={suggestion.id}
+                  style={styles.suggestionRow}
+                  onPress={() => setSearchWhere(suggestion.query)}
+                >
+                  <View style={styles.suggestionIconBox}>
+                    <Text style={styles.suggestionIcon}>{suggestion.icon}</Text>
+                  </View>
+                  <View style={styles.suggestionTextWrap}>
+                    <Text style={styles.suggestionTitle}>{suggestion.title}</Text>
+                    <Text style={styles.suggestionSubtitle}>{suggestion.subtitle}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.searchMetaRow}>
+              <Text style={styles.searchMetaLabel}>When</Text>
+              <TextInput
+                style={styles.searchMetaInput}
+                placeholder="Add dates"
+                value={searchWhen}
+                onChangeText={setSearchWhen}
+                placeholderTextColor={COLORS.darkNavy}
+              />
+            </View>
+
+            <View style={styles.searchMetaRow}>
+              <Text style={styles.searchMetaLabel}>Who</Text>
+              <TextInput
+                style={styles.searchMetaInput}
+                placeholder="Add guests"
+                value={searchWho}
+                onChangeText={setSearchWho}
+                placeholderTextColor={COLORS.darkNavy}
+              />
+            </View>
+
+            <View style={styles.searchFooter}>
+              <TouchableOpacity
+                onPress={() => {
+                  setSearchWhere('');
+                  setSearchWhen('');
+                  setSearchWho('');
+                }}
+              >
+                <Text style={styles.clearAllText}>Clear all</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.searchActionBtn}>
+                <Text style={styles.searchActionBtnIcon}>⌕</Text>
+                <Text style={styles.searchActionBtnText}>Search</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
         {filteredSections.length > 0 ? (
           filteredSections.map(section => (
             <View key={section.id} style={styles.sectionContainer}>
@@ -299,8 +404,8 @@ const ExploreScreen = ({ navigation }: any) => {
                           <Text style={styles.cardBadgeLabel}>{item.badge}</Text>
                         </View>
                         <TouchableOpacity style={styles.heartBtn} onPress={() => toggleFav(item.id)}>
-                          <Text style={{ fontSize: 18, color: favorites.has(item.id) ? '#FF385C' : '#fff' }}>
-                            {favorites.has(item.id) ? '♥' : '♡'}
+                          <Text style={{ fontSize: 18, color: wishlistSet.has(item.id) ? '#FF385C' : '#fff' }}>
+                            {wishlistSet.has(item.id) ? '♥' : '♡'}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -344,6 +449,123 @@ const WishlistScreen = () => (
     <Text style={styles.emptyScreenSubtitle}>Tap the heart on any property to save it here.</Text>
   </View>
 );
+
+const WishlistDatabaseScreen = ({ navigation }: any) => {
+  const { wishlistIds, toggleWishlist, token } = React.useContext(AuthContext);
+  const [savedListings, setSavedListings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const mockWishlistCatalog = useMemo(
+    () =>
+      mockSections.flatMap(section =>
+        section.items.map(item => ({
+          ...item,
+          image: item.image || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600',
+        }))
+      ),
+    []
+  );
+
+  useEffect(() => {
+    const fetchSavedListings = async () => {
+      if (!token || wishlistIds.length === 0) {
+        setSavedListings([]);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_BASE_URL}/listings`);
+        const data = await res.json();
+        const apiListings = Array.isArray(data.listings) ? data.listings : [];
+        const normalizedApiListings = apiListings.map((item: any) => ({
+          ...item,
+          subtitle: item.description || item.size || item.location,
+          image: (item.photos && item.photos[0]) || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600',
+        }));
+        const combinedListings = [...normalizedApiListings, ...mockWishlistCatalog];
+        const uniqueListings = combinedListings.filter(
+          (item, index, arr) => arr.findIndex(entry => entry.id === item.id) === index
+        );
+        setSavedListings(
+          wishlistIds
+            .map(id => uniqueListings.find((item: any) => item.id === id))
+            .filter(Boolean)
+        );
+      } catch (e) {
+        setSavedListings(
+          wishlistIds
+            .map(id => mockWishlistCatalog.find(item => item.id === id))
+            .filter(Boolean)
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSavedListings();
+  }, [mockWishlistCatalog, wishlistIds, token]);
+
+  if (!token) {
+    return (
+      <View style={styles.centerScreen}>
+        <Text style={styles.iconBig}>❤</Text>
+        <Text style={styles.emptyScreenTitle}>Log in to use wishlists</Text>
+        <Text style={styles.emptyScreenSubtitle}>Tap the heart on any property to save it here.</Text>
+      </View>
+    );
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.centerScreen}>
+        <Text style={styles.emptyScreenTitle}>Loading your wishlist...</Text>
+      </View>
+    );
+  }
+
+  if (savedListings.length === 0) {
+    return (
+      <View style={styles.centerScreen}>
+        <Text style={styles.iconBig}>❤</Text>
+        <Text style={styles.emptyScreenTitle}>Your wishlist is empty</Text>
+        <Text style={styles.emptyScreenSubtitle}>Tap the heart on any property to save it here.</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: COLORS.white }} contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
+      <Text style={[styles.emptyScreenTitle, { textAlign: 'left', marginBottom: 20 }]}>Saved Wishlists</Text>
+      {savedListings.map((item) => (
+        <View key={item.id} style={styles.wishlistCard}>
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            onPress={() => navigation.navigate('ListingDetail', { item: {
+              ...item,
+              image: item.image || (item.photos && item.photos[0]) || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600',
+              rating: '4.95',
+              badge: 'Wishlist'
+            } })}
+          >
+            <Image
+              source={{ uri: item.image || (item.photos && item.photos[0]) || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600' }}
+              style={styles.wishlistImage}
+            />
+            <View style={styles.wishlistBody}>
+              <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+              <Text style={styles.cardSub} numberOfLines={1}>{item.subtitle || item.description || item.location}</Text>
+              <Text style={styles.cardLoc}>{item.location}</Text>
+              <Text style={[styles.cardPrice, { marginTop: 8 }]}>{`₹${item.price} / night`}</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.removeWishlistBtn} onPress={() => toggleWishlist(item.id)}>
+            <Text style={styles.removeWishlistText}>Remove</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+    </ScrollView>
+  );
+};
 
 const ProfileScreen = ({ navigation }: any) => {
   const { user, setUser, setToken, logout } = React.useContext(AuthContext);
@@ -494,7 +716,7 @@ function MainTabs() {
         />
         <Tab.Screen 
           name="Wishlists" 
-          component={WishlistScreen} 
+          component={WishlistDatabaseScreen} 
           options={{ tabBarIcon: ({ color }: { color: string }) => <Text style={{ color, fontSize: 24 }}>♡</Text> }}
         />
         <Tab.Screen 
@@ -644,8 +866,195 @@ const styles = StyleSheet.create({
     color: COLORS.darkNavy,
   },
   scrollContent: {
-    paddingVertical: 24,
+    paddingTop: 24,
     paddingBottom: 80,
+  },
+  searchHero: {
+    display: 'none',
+  },
+  searchHeroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  categoryRow: {
+    paddingRight: 12,
+    gap: 24,
+  },
+  categoryPill: {
+    alignItems: 'center',
+    paddingBottom: 8,
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
+  },
+  categoryPillActive: {
+    borderBottomColor: COLORS.darkNavy,
+  },
+  categoryPillIcon: {
+    fontSize: 28,
+    marginBottom: 6,
+  },
+  categoryPillText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#666',
+  },
+  categoryPillTextActive: {
+    color: COLORS.darkNavy,
+    fontWeight: '700',
+  },
+  searchCloseBtn: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: COLORS.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  searchCloseBtnText: {
+    fontSize: 24,
+    color: COLORS.darkNavy,
+    lineHeight: 28,
+  },
+  searchSheet: {
+    backgroundColor: COLORS.white,
+    borderRadius: 34,
+    padding: 22,
+    shadowColor: COLORS.darkNavy,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  searchSheetTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: COLORS.darkNavy,
+    marginBottom: 18,
+  },
+  searchInputShell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(26,39,66,0.22)',
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  searchIcon: {
+    fontSize: 18,
+    color: COLORS.darkNavy,
+    marginRight: 12,
+    fontWeight: '700',
+  },
+  searchSheetInput: {
+    flex: 1,
+    fontSize: 16,
+    color: COLORS.darkNavy,
+    padding: 0,
+  },
+  suggestionHeading: {
+    marginTop: 24,
+    marginBottom: 16,
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.darkNavy,
+  },
+  suggestionList: {
+    gap: 14,
+    marginBottom: 18,
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  suggestionIconBox: {
+    width: 70,
+    height: 70,
+    borderRadius: 18,
+    backgroundColor: '#f4f6fb',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  suggestionIcon: {
+    fontSize: 22,
+    color: COLORS.steelBlue,
+    fontWeight: '700',
+  },
+  suggestionTextWrap: {
+    flex: 1,
+  },
+  suggestionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.darkNavy,
+    marginBottom: 4,
+  },
+  suggestionSubtitle: {
+    fontSize: 14,
+    color: '#6f7b8d',
+  },
+  searchMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.white,
+    borderRadius: 22,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    marginTop: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  searchMetaLabel: {
+    fontSize: 17,
+    color: '#666',
+  },
+  searchMetaInput: {
+    minWidth: 120,
+    textAlign: 'right',
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.darkNavy,
+    padding: 0,
+  },
+  searchFooter: {
+    marginTop: 24,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  clearAllText: {
+    fontSize: 17,
+    color: COLORS.darkNavy,
+  },
+  searchActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e61e4d',
+    borderRadius: 18,
+    paddingHorizontal: 22,
+    paddingVertical: 16,
+  },
+  searchActionBtnIcon: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: '700',
+    marginRight: 10,
+  },
+  searchActionBtnText: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: '700',
   },
   sectionContainer: {
     marginBottom: 30,
@@ -851,5 +1260,39 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     fontSize: 16,
     color: COLORS.darkNavy,
+  },
+  wishlistCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 18,
+    shadowColor: COLORS.darkNavy,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(143, 174, 200, 0.12)',
+  },
+  wishlistImage: {
+    width: '100%',
+    height: 180,
+  },
+  wishlistBody: {
+    padding: 16,
+  },
+  removeWishlistBtn: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FF385C',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  removeWishlistText: {
+    color: '#FF385C',
+    fontWeight: '700',
+    fontSize: 14,
   }
 });
